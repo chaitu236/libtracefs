@@ -65,11 +65,11 @@ includedir_SQ = '$(subst ','\'',$(includedir))'
 pkgconfig_dir ?= $(word 1,$(shell $(PKG_CONFIG) 		\
 			--variable pc_path pkg-config | tr ":" " "))
 
-TEST_LIBTRACEEVENT = $(shell sh -c "$(PKG_CONFIG) --atleast-version $(LIBTRACEEVENT_MIN_VERSION) libtraceevent > /dev/null 2>&1 && echo y")
+TEST_LIBTRACEEVENT = $(shell sh -c "PKG_CONFIG_LIBDIR=$(pkgconfig_dir) $(PKG_CONFIG) --atleast-version $(LIBTRACEEVENT_MIN_VERSION) libtraceevent > /dev/null 2>&1 && echo y")
 
 ifeq ("$(TEST_LIBTRACEEVENT)", "y")
-LIBTRACEEVENT_INCLUDES = $(shell sh -c "$(PKG_CONFIG) --cflags libtraceevent")
-LIBTRACEEVENT_LIBS = $(shell sh -c "$(PKG_CONFIG) --libs libtraceevent")
+LIBTRACEEVENT_INCLUDES = $(shell sh -c "PKG_CONFIG_LIBDIR=$(pkgconfig_dir) $(PKG_CONFIG) --cflags libtraceevent")
+LIBTRACEEVENT_LIBS = $(shell sh -c "PKG_CONFIG_LIBDIR=$(pkgconfig_dir) $(PKG_CONFIG) --libs libtraceevent")
 else
  ifneq ($(MAKECMDGOALS),clean)
    $(error libtraceevent.so minimum version of $(LIBTRACEEVENT_MIN_VERSION) not installed)
@@ -158,6 +158,7 @@ include scripts/utils.mk
 
 INCLUDES = -I$(src)/include
 INCLUDES += -I$(src)/include/tracefs
+INCLUDES += -I/tmp/emscripten_root/usr/include
 
 include $(src)/scripts/features.mk
 
@@ -171,6 +172,10 @@ endif
 CFLAGS ?= -g -Wall
 CPPFLAGS ?=
 LDFLAGS ?=
+
+CFLAGS += -pthread
+#CPPFLAGS += -pthread
+#LDFLAGS += -pthread
 
 CUNIT_INSTALLED := $(shell if (printf "$(pound)include <CUnit/Basic.h>\n void main(){CU_initialize_registry();}" | $(CC) -x c - -lcunit -o /dev/null >/dev/null 2>&1) ; then echo 1; else echo 0 ; fi)
 export CUNIT_INSTALLED
@@ -295,12 +300,11 @@ install_libs: libs install_pkgconfig
 	$(Q)$(call do_install,$(LIBTRACEFS_SHARED),$(libdir_SQ)); \
 		cp -fpR $(LIB_INSTALL) $(DESTDIR)$(libdir_SQ)
 	$(Q)$(call do_install,$(src)/include/tracefs.h,$(includedir_SQ),644)
-	$(Q)$(call install_ld_config)
 
 install_bash_completion: force
 	$(Q)$(call do_install_data,$(src)/src/tracefs_sql.bash,$(completion_dir))
 
-install: install_libs install_bash_completion
+install: install_libs
 
 install_pkgconfig: $(PKG_CONFIG_FILE)
 	$(Q)$(call , $(PKG_CONFIG_FILE)) \
