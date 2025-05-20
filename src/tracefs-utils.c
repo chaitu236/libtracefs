@@ -63,8 +63,8 @@ static int mount_tracefs(void)
 	if (ret < 0)
 		return -1;
 
-	ret = mount("nodev", TRACEFS_PATH,
-		    "tracefs", 0, NULL);
+	//ret = mount("nodev", TRACEFS_PATH,
+	//	    "tracefs", 0, NULL);
 
 	return ret;
 }
@@ -79,8 +79,8 @@ static int mount_debugfs(void)
 	if (ret < 0)
 		return -1;
 
-	ret = mount("nodev", DEBUGFS_PATH,
-		    "debugfs", 0, NULL);
+	//ret = mount("nodev", DEBUGFS_PATH,
+	//	    "debugfs", 0, NULL);
 
 	return ret;
 }
