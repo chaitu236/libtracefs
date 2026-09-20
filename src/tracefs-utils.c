@@ -63,8 +63,12 @@ static int mount_tracefs(void)
 	if (ret < 0)
 		return -1;
 
-	//ret = mount("nodev", TRACEFS_PATH,
-	//	    "tracefs", 0, NULL);
+#ifndef __EMSCRIPTEN__
+	ret = mount("nodev", TRACEFS_PATH, "tracefs", 0, NULL);
+#else
+	errno = ENOSYS;
+	ret = -1;
+#endif
 
 	return ret;
 }
@@ -79,8 +83,12 @@ static int mount_debugfs(void)
 	if (ret < 0)
 		return -1;
 
-	//ret = mount("nodev", DEBUGFS_PATH,
-	//	    "debugfs", 0, NULL);
+#ifndef __EMSCRIPTEN__
+	ret = mount("nodev", DEBUGFS_PATH, "debugfs", 0, NULL);
+#else
+	errno = ENOSYS;
+	ret = -1;
+#endif
 
 	return ret;
 }

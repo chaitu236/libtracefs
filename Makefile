@@ -65,11 +65,11 @@ includedir_SQ = '$(subst ','\'',$(includedir))'
 pkgconfig_dir ?= $(word 1,$(shell $(PKG_CONFIG) 		\
 			--variable pc_path pkg-config | tr ":" " "))
 
-TEST_LIBTRACEEVENT = $(shell sh -c "PKG_CONFIG_LIBDIR=$(pkgconfig_dir) $(PKG_CONFIG) --atleast-version $(LIBTRACEEVENT_MIN_VERSION) libtraceevent > /dev/null 2>&1 && echo y")
+TEST_LIBTRACEEVENT = $(shell $(PKG_CONFIG) --atleast-version $(LIBTRACEEVENT_MIN_VERSION) libtraceevent > /dev/null 2>&1 && echo y)
 
 ifeq ("$(TEST_LIBTRACEEVENT)", "y")
-LIBTRACEEVENT_INCLUDES = $(shell sh -c "PKG_CONFIG_LIBDIR=$(pkgconfig_dir) $(PKG_CONFIG) --cflags libtraceevent")
-LIBTRACEEVENT_LIBS = $(shell sh -c "PKG_CONFIG_LIBDIR=$(pkgconfig_dir) $(PKG_CONFIG) --libs libtraceevent")
+LIBTRACEEVENT_INCLUDES = $(shell $(PKG_CONFIG) --cflags libtraceevent)
+LIBTRACEEVENT_LIBS = $(shell $(PKG_CONFIG) --libs libtraceevent)
 else
  ifneq ($(MAKECMDGOALS),clean)
    $(error libtraceevent.so minimum version of $(LIBTRACEEVENT_MIN_VERSION) not installed)
@@ -158,7 +158,7 @@ include scripts/utils.mk
 
 INCLUDES = -I$(src)/include
 INCLUDES += -I$(src)/include/tracefs
-INCLUDES += -I/tmp/emscripten_root/usr/include
+INCLUDES += $(CONFIG_INCLUDES)
 
 include $(src)/scripts/features.mk
 
@@ -172,10 +172,6 @@ endif
 CFLAGS ?= -g -Wall
 CPPFLAGS ?=
 LDFLAGS ?=
-
-CFLAGS += -pthread
-#CPPFLAGS += -pthread
-#LDFLAGS += -pthread
 
 CUNIT_INSTALLED := $(shell if (printf "$(pound)include <CUnit/Basic.h>\n void main(){CU_initialize_registry();}" | $(CC) -x c - -lcunit -o /dev/null >/dev/null 2>&1) ; then echo 1; else echo 0 ; fi)
 export CUNIT_INSTALLED
@@ -192,17 +188,23 @@ export INCLUDES
 all: all_cmd
 
 LIB_TARGET  = libtracefs.a libtracefs.so.$(TRACEFS_VERSION)
+ifeq ($(WASM),1)
+LIB_TARGET = libtracefs.a
+endif
 LIB_INSTALL = libtracefs.a libtracefs.so*
 LIB_INSTALL := $(addprefix $(bdir)/,$(LIB_INSTALL))
 
 TARGETS = libtracefs.so libtracefs.a
+ifeq ($(WASM),1)
+TARGETS = libtracefs.a
+endif
 
 all_cmd: $(TARGETS) $(PKG_CONFIG_FILE)
 
 libtracefs.a: $(bdir) $(LIBTRACEFS_STATIC)
 libtracefs.so: $(bdir) $(LIBTRACEFS_SHARED)
 
-libs: libtracefs.a libtracefs.so
+libs: $(LIB_TARGET)
 
 VALGRIND = $(shell which valgrind)
 UTEST_DIR = utest
@@ -297,14 +299,24 @@ endef
 endif # DESTDIR = ""
 
 install_libs: libs install_pkgconfig
+
+ifeq ($(WASM),1)
+	$(Q)$(call do_install,$(LIBTRACEFS_STATIC),$(libdir_SQ));
+else
 	$(Q)$(call do_install,$(LIBTRACEFS_SHARED),$(libdir_SQ)); \
 		cp -fpR $(LIB_INSTALL) $(DESTDIR)$(libdir_SQ)
+endif
 	$(Q)$(call do_install,$(src)/include/tracefs.h,$(includedir_SQ),644)
 
 install_bash_completion: force
 	$(Q)$(call do_install_data,$(src)/src/tracefs_sql.bash,$(completion_dir))
 
+ifeq ($(WASM),1)
 install: install_libs
+else
+install: install_libs install_bash_completion
+	$(Q)$(call install_ld_config)
+endif
 
 install_pkgconfig: $(PKG_CONFIG_FILE)
 	$(Q)$(call , $(PKG_CONFIG_FILE)) \

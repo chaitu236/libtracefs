@@ -57,12 +57,14 @@ const int tracer_enums[] = { TRACERS };
 static int ftrace_filter_fd = -1;
 static int ftrace_notrace_fd = -1;
 
-inline ssize_t splice(int, off_t *, int, off_t *, size_t, unsigned) {
-	// for emscripten we shouldn't be using tracefs-record, etc.
-	// So empty def for splice
-	*(void *)(0xb2b);
-	return 0;
+#ifdef __EMSCRIPTEN__
+ssize_t splice(int src_fd, off_t *src_off, int dst_fd, off_t *dst_off,
+	       size_t length, unsigned flags)
+{
+	errno = ENOSYS;
+	return -1;
 }
+#endif
 
 static const char * const options_map[] = {
 	"unknown",
